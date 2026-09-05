@@ -86,6 +86,17 @@ The per-server schema is closed (`additionalProperties: false`). Its complete fi
 
 `hooks/hooks.json` runs `just-lsp analyze` from a `PostToolUse` hook with `if` rules `Edit([Jj]ustfile)`, `Edit(.justfile)`, `Write([Jj]ustfile)`, `Write(.justfile)`, and returns the report as `hookSpecificOutput.additionalContext`. That restores diagnostics after edits for the canonical names. It cannot restore the LSP tool: hover, definition, references, and symbols on a bare `justfile` still fail at server selection. On Windows, `if` file rules match case-insensitively, so `Edit(justfile)` and `Edit(Justfile)` as separate rules fire twice; the character class fires once.
 
+## Shadow-file experiments
+
+A second name with the extension routes, so a shadow `justfile.just` beside `justfile` was tried both ways on Windows 11, NTFS.
+
+| Shadow type | LSP tool through the shadow | Claude Code `Edit` on the shadow                                                      |
+| ----------- | --------------------------- | ------------------------------------------------------------------------------------- |
+| symlink     | works (9 symbols, 3 diagnostics) | refused: `Refusing to write <path>: it is a symbolic link. Write to the link's target path instead.` |
+| hardlink    | works                       | succeeds, but the write is temp-file plus rename: the shadow becomes a new file with the edit and `justfile` keeps the old content. `fsutil hardlink list` shows one entry each afterwards. |
+
+A symlink is therefore a safe read-only shadow. A hardlink silently forks the file. Neither makes `justfile` itself routable, and the plugin does not create either.
+
 ## Missing capability
 
 A filename match in the LSP server config, alongside `extensionToLanguage`, applied in server selection and in the `languageId` chosen for `didOpen`:

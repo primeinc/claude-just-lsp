@@ -15,7 +15,7 @@ Claude Code selects an LSP server by the file's extension (`path.extname()`) and
 
 For the canonical names this plugin ships `hooks/hooks.json`: after every `Edit` or `Write` whose target basename is `justfile`, `Justfile`, or `.justfile`, it runs `just-lsp analyze <file>` (just-lsp's own diagnostic CLI) and returns the report to Claude as hook context, the same channel native LSP diagnostics use. Nothing is reported for a clean file. The hook is `scripts/just-lsp-analyze.sh`, a POSIX `sh` script; it uses `jq` to read the edited path from the hook input and, when `jq` is absent, falls back to `just-lsp analyze` searching upward from the working directory and reporting through stderr.
 
-The LSP tool still answers `No LSP server available for file type:` for a bare `justfile`. Rename or symlink a copy as `justfile.just` if you need hover or go-to-definition on one.
+The LSP tool still answers `No LSP server available for file type:` for a bare `justfile`. For hover or go-to-definition on one, a **symlink** `justfile.just -> justfile` works as a read-only shadow: the LSP tool routes through it, and Claude Code refuses to write through a symlink (`Refusing to write ...: it is a symbolic link`), so edits keep going to `justfile` where the hook reports. Do not use a **hardlink**: Claude Code writes by temp file and rename, which splits the pair and leaves `justfile` stale without any error.
 
 ## Prerequisites
 
