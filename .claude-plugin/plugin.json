@@ -1,0 +1,13 @@
+{
+  "name": "just-lsp",
+  "version": "0.1.0",
+  "description": "Just language server (just-lsp) for Claude Code: diagnostics, hover, definitions, and symbols in justfiles",
+  "author": {
+    "name": "primeinc"
+  },
+  "homepage": "https://github.com/primeinc/claude-just-lsp",
+  "repository": "https://github.com/primeinc/claude-just-lsp",
+  "license": "MIT",
+  "keywords": ["just", "justfile", "lsp", "language-server"],
+  "lspServers": "./.lsp.json"
+}

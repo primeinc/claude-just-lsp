@@ -1,0 +1,40 @@
+{
+  "description": "just-lsp diagnostics for canonical justfile names, which Claude Code's extension-based LSP routing cannot reach",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit([Jj]ustfile)",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
+            "timeout": 30,
+            "statusMessage": "just-lsp analyze"
+          },
+          {
+            "type": "command",
+            "if": "Edit(.justfile)",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
+            "timeout": 30,
+            "statusMessage": "just-lsp analyze"
+          },
+          {
+            "type": "command",
+            "if": "Write([Jj]ustfile)",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
+            "timeout": 30,
+            "statusMessage": "just-lsp analyze"
+          },
+          {
+            "type": "command",
+            "if": "Write(.justfile)",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
+            "timeout": 30,
+            "statusMessage": "just-lsp analyze"
+          }
+        ]
+      }
+    ]
+  }
+}

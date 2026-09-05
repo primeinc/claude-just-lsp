@@ -1,0 +1,8 @@
+{
+  "just": {
+    "command": "just-lsp",
+    "extensionToLanguage": {
+      ".just": "just"
+    }
+  }
+}
