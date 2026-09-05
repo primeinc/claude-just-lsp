@@ -82,9 +82,9 @@ Requires `just`, `just-lsp`, `jq`, `rg`, `bash`, `claude` on `PATH`. Recipes mar
 | `just hook-unit`   | 0         | script: exit 2 and message without `jq`; without `just-lsp`; without `file_path`; JSON with `missing-dependencies` for a dirty file; silence for a clean file |
 | `just matrix`      | 4         | `foo.just`: `LSP: Sent didOpen ... (languageId: just)`; `justfile`, `Justfile`, `.justfile`: `No LSP server available for file type` |
 | `just intel`       | 3         | `hover`, `goToDefinition`, `findReferences` on `build` at foo.just 14:7 attach                                            |
-| `just hook-matrix` | 4         | `Edit` on `justfile`, `Justfile`, `.justfile` and `Write` on `justfile`: exactly one `Hook PostToolUse (just-lsp analyze) provided additionalContext` |
+| `just hook-matrix` | 5         | `Edit` on `justfile`, `Justfile`, `.justfile` and `Write` on `justfile`, `.justfile`: exactly one `Hook PostToolUse (just-lsp analyze) provided additionalContext` |
 | `just diag-probe`  | 2 turns   | after an `Edit` of a scratch `foo.just`, log line `LSP Diagnostics: Delivering` and the second turn quotes the diagnostics |
-| `just check`       | 13        | all of the above                                                                                                          |
+| `just check`       | 14        | all of the above                                                                                                          |
 
 `diag-probe` runs with Claude Code's default tool set. A session started with `--tools` restricted to `Read,Edit` never builds LSP diagnostic attachments (`getLSPDiagnosticAttachments` returns before reading the registry); diagnostics are still received and registered but not delivered.
 

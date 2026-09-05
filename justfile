@@ -178,8 +178,8 @@ hook-probe name='hook' fixture='tests/fixtures/lower/justfile' basename='justfil
     rg -q '^deploy: build|^deploy: missing_recipe' "$scratch" || { echo "FAIL: scratch file unexpected" >&2; exit 1; }
     echo "hook-probe $name: delivered once"
 
-# Edit justfile, Justfile, .justfile; Write justfile
-hook-matrix: (hook-probe 'hook-lower' 'tests/fixtures/lower/justfile' 'justfile' 'Edit') (hook-probe 'hook-upper' 'tests/fixtures/upper/Justfile' 'Justfile' 'Edit') (hook-probe 'hook-dot' 'tests/fixtures/dot/.justfile' '.justfile' 'Edit') (hook-probe 'hook-write' 'tests/fixtures/lower/justfile' 'justfile' 'Write')
+# Edit justfile, Justfile, .justfile; Write justfile, .justfile
+hook-matrix: (hook-probe 'hook-lower' 'tests/fixtures/lower/justfile' 'justfile' 'Edit') (hook-probe 'hook-upper' 'tests/fixtures/upper/Justfile' 'Justfile' 'Edit') (hook-probe 'hook-dot' 'tests/fixtures/dot/.justfile' '.justfile' 'Edit') (hook-probe 'hook-write' 'tests/fixtures/lower/justfile' 'justfile' 'Write') (hook-probe 'hook-write-dot' 'tests/fixtures/dot/.justfile' '.justfile' 'Write')
 
-# All recipes above; 13 Claude API turns
+# All recipes above; 14 Claude API turns
 check: validate analyze hook-unit matrix intel hook-matrix diag-probe
