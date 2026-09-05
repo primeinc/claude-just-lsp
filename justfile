@@ -5,17 +5,17 @@ set script-interpreter := ['bash', '-euo', 'pipefail']
 out_dir := 'tests/out'
 probe_model := 'haiku'
 probe_budget_usd := '0.50'
-# empty = this repository; override to probe an alternate plugin directory
+# empty: this repository. Set to probe another plugin directory
 plugin_dir := ''
 
 default:
     @just --list
 
-# Validate plugin.json, marketplace.json, and hooks/hooks.json (warnings are errors); .lsp.json is checked only at runtime
+# claude plugin validate --strict: plugin.json, marketplace.json, hooks/hooks.json. .lsp.json is validated only at session start
 validate:
     claude plugin validate . --strict
 
-# Run just-lsp directly on every fixture, independent of Claude Code
+# just-lsp analyze on each fixture without Claude Code; each fixture yields 1 warning, 2 errors, exit 1
 [script]
 analyze:
     for f in tests/fixtures/ext/foo.just tests/fixtures/lower/justfile tests/fixtures/upper/Justfile tests/fixtures/dot/.justfile; do
@@ -23,7 +23,7 @@ analyze:
         NO_COLOR=1 just-lsp analyze "$f" || echo "rc=$?"
     done
 
-# Exercise the hook script directly: missing jq, missing just-lsp, no path, dirty file, clean file
+# scripts/just-lsp-analyze.sh without Claude Code: no jq, no just-lsp, no file_path, dirty file, clean file
 [script]
 hook-unit:
     if command -v cygpath > /dev/null 2>&1; then root="$(cygpath -a -m .)"; else root="$(pwd)"; fi
@@ -50,7 +50,7 @@ hook-unit:
     [ -z "$out" ] || fail "expected no output for clean file: $out"
     echo "hook-unit: ok"
 
-# One LSP operation through Claude Code on one fixture; expect 'attach' or 'miss'
+# One LSP tool call through Claude Code; expect=attach asserts didOpen with languageId just, expect=miss asserts the routing miss
 [script]
 probe name file expect='attach' op='documentSymbol' line='1' character='1':
     mkdir -p "$out_dir"
@@ -87,13 +87,55 @@ probe name file expect='attach' op='documentSymbol' line='1' character='1':
     esac
     echo "probe $name: $expect confirmed"
 
-# Canonical filename matrix: foo.just attaches; justfile and Justfile miss (Claude Code routes by extension only)
-matrix: (probe 'ext' 'tests/fixtures/ext/foo.just' 'attach') (probe 'lower' 'tests/fixtures/lower/justfile' 'miss') (probe 'upper' 'tests/fixtures/upper/Justfile' 'miss')
+# foo.just attaches; justfile, Justfile, .justfile miss
+matrix: (probe 'ext' 'tests/fixtures/ext/foo.just' 'attach') (probe 'lower' 'tests/fixtures/lower/justfile' 'miss') (probe 'upper' 'tests/fixtures/upper/Justfile' 'miss') (probe 'dot' 'tests/fixtures/dot/.justfile' 'miss')
 
-# Hover and definition on `build` in `test: build` (foo.just line 14, col 7)
-intel: (probe 'hover' 'tests/fixtures/ext/foo.just' 'attach' 'hover' '14' '7') (probe 'definition' 'tests/fixtures/ext/foo.just' 'attach' 'goToDefinition' '14' '7')
+# hover, goToDefinition, findReferences on `build` in `test: build`, foo.just 14:7
+intel: (probe 'hover' 'tests/fixtures/ext/foo.just' 'attach' 'hover' '14' '7') (probe 'definition' 'tests/fixtures/ext/foo.just' 'attach' 'goToDefinition' '14' '7') (probe 'references' 'tests/fixtures/ext/foo.just' 'attach' 'findReferences' '14' '7')
 
-# Claude edits (tool=Edit) or creates (tool=Write) a scratch copy of a canonical justfile; the hook must deliver a report
+# Two user turns, default tool set: turn 1 edits a scratch foo.just; turn 2 must quote the delivered LSP diagnostics. --tools restricted to Read,Edit disables delivery
+[script]
+diag-probe name='diag' tools='default':
+    mkdir -p "$out_dir/$name"
+    if command -v cygpath > /dev/null 2>&1; then root="$(cygpath -a -m .)"; else root="$(pwd)"; fi
+    scratch="$root/$out_dir/$name/foo.just"
+    log="$root/$out_dir/$name.debug.log"
+    result="$out_dir/$name.result.jsonl"
+    cp tests/fixtures/ext/foo.just "$scratch"
+    rm -f "$log" "$result"
+    : > "$result"
+    t1="Read $scratch, then use the Edit tool exactly once on it: replace the line 'deploy: missing_recipe' with 'deploy: build'. Reply with the single word DONE."
+    t2="Quote verbatim every LSP diagnostic, system reminder, or attachment that reached your context since the edit. If none did, reply with the single word NONE."
+    # block until the stream holds N result lines; attempt cap 4000
+    results_seen() { c=$(rg -c '"type":"result"' "$result" || true); echo "${c:-0}"; }
+    wait_results() { n=0; while [ "$(results_seen)" -lt "$1" ]; do n=$((n+1)); [ "$n" -lt 4000 ] || { echo "FAIL: turn $1 never produced a result" >&2; return 1; }; done; }
+    echo "=== diag-probe $name: $scratch ==="
+    {
+        jq -nc --arg t "$t1" '{type:"user",message:{role:"user",content:$t}}'
+        wait_results 1
+        jq -nc --arg t "$t2" '{type:"user",message:{role:"user",content:$t}}'
+        wait_results 2
+    } | claude -p \
+        --plugin-dir "${plugin_dir:-$root}" \
+        --debug-file "$log" \
+        --tools "$tools" \
+        --permission-mode acceptEdits \
+        --model "$probe_model" \
+        --max-budget-usd "$probe_budget_usd" \
+        --input-format stream-json \
+        --output-format stream-json \
+        --verbose \
+        --no-session-persistence >> "$result"
+    echo "--- results ---"
+    jq -c 'select(.type=="result") | {num_turns,result}' "$result"
+    echo "--- diagnostics lifecycle in log ---"
+    rg -n 'Sent didOpen|Sent didChange|Received diagnostics from plugin:just-lsp|LSP Diagnostics:' "$log" || true
+    echo "--- diagnostic text outside tool results ---"
+    rg -n 'unused-variables|unknown-function' "$result" | rg -v 'tool_use_result|"tool_result"' || echo "(none)"
+    [ "$(results_seen)" -eq 2 ] || { echo "FAIL: expected 2 results, saw $(results_seen)" >&2; exit 1; }
+    rg -q 'LSP Diagnostics: Delivering' "$log" && echo "diag-probe $name: delivered" || { echo "diag-probe $name: NOT delivered (registered only)"; exit 1; }
+
+# tool=Edit: Claude edits a scratch copy of the fixture under basename; tool=Write: Claude creates it. Asserts one hook delivery
 [script]
 hook-probe name='hook' fixture='tests/fixtures/lower/justfile' basename='justfile' tool='Edit':
     mkdir -p "$out_dir/$name"
@@ -136,8 +178,8 @@ hook-probe name='hook' fixture='tests/fixtures/lower/justfile' basename='justfil
     rg -q '^deploy: build|^deploy: missing_recipe' "$scratch" || { echo "FAIL: scratch file unexpected" >&2; exit 1; }
     echo "hook-probe $name: delivered once"
 
-# Every hook rule once: Edit justfile, Justfile, .justfile; Write justfile
+# Edit justfile, Justfile, .justfile; Write justfile
 hook-matrix: (hook-probe 'hook-lower' 'tests/fixtures/lower/justfile' 'justfile' 'Edit') (hook-probe 'hook-upper' 'tests/fixtures/upper/Justfile' 'Justfile' 'Edit') (hook-probe 'hook-dot' 'tests/fixtures/dot/.justfile' '.justfile' 'Edit') (hook-probe 'hook-write' 'tests/fixtures/lower/justfile' 'justfile' 'Write')
 
-# Everything: schema, direct server, script unit tests, Claude Code matrix, hover/definition, hook matrix
-check: validate analyze hook-unit matrix intel hook-matrix
+# All recipes above; 13 Claude API turns
+check: validate analyze hook-unit matrix intel hook-matrix diag-probe

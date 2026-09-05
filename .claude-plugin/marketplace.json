@@ -8,9 +8,14 @@
     {
       "name": "just-lsp",
       "source": "./",
-      "description": "Just language server (just-lsp) for Claude Code: diagnostics, hover, definitions, and symbols in justfiles",
+      "description": "terror/just-lsp for Claude Code: LSP for *.just files; just-lsp analyze after edits to justfile, Justfile, .justfile",
       "category": "development",
-      "tags": ["just", "justfile", "lsp", "language-server"]
+      "tags": [
+        "just",
+        "justfile",
+        "lsp",
+        "language-server"
+      ]
     }
   ]
 }

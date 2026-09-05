@@ -1,5 +1,5 @@
 {
-  "description": "just-lsp diagnostics for canonical justfile names, which Claude Code's extension-based LSP routing cannot reach",
+  "description": "Runs just-lsp analyze after Edit or Write of justfile or .justfile in any letter case at any path; returns the report as additionalContext",
   "hooks": {
     "PostToolUse": [
       {

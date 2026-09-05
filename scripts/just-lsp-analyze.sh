@@ -1,11 +1,8 @@
 #!/bin/sh
-# PostToolUse hook: run `just-lsp analyze` on the justfile Claude just edited and
-# hand the report to Claude as hookSpecificOutput.additionalContext (exit 0).
-#
-# Reads the hook JSON on stdin and takes the edited path from
-# tool_input.file_path. Only that file is analyzed. When a prerequisite is
-# missing, one fixed line goes to stderr with exit 2, which PostToolUse shows
-# to Claude; nothing else is analyzed in its place.
+# PostToolUse hook. Input: hook JSON on stdin. Analyzes tool_input.file_path
+# with `just-lsp analyze` and prints the report as
+# hookSpecificOutput.additionalContext, exit 0. Missing jq, missing just-lsp,
+# or missing file_path: one line on stderr, exit 2, no analysis.
 set -u
 
 input=$(cat)
@@ -26,14 +23,13 @@ if [ -z "$target" ]; then
   exit 2
 fi
 
-# analyze prints diagnostics to stdout and its own failures to stderr;
-# exit 0 = clean or warnings only, exit 1 = error-severity diagnostics or a failure.
+# analyze: diagnostics on stdout, failures on stderr; exit 0 clean or warnings, exit 1 errors or failure.
 report=$(NO_COLOR=1 just-lsp analyze "$target" 2>&1)
 rc=$?
 
 [ -n "$report" ] || exit 0
 
-# additionalContext is capped at 10,000 characters by Claude Code; stay under it.
+# additionalContext cap is 10,000 characters; cut at 9,000.
 jq -nc --arg r "$report" --argjson rc "$rc" '
   (if $rc > 1 then "just-lsp analyze failed (exit \($rc)):\n" else "just-lsp analyze:\n" end) as $head
   | ($r | if length > 9000 then .[0:9000] + "\n[report truncated at 9000 characters]" else . end) as $body
