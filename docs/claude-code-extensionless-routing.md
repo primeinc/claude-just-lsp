@@ -93,7 +93,6 @@ Per-server schema fields, complete: `command, args, extensionToLanguage, transpo
 
 This analysis was filed as [anthropics/claude-code#92304](https://github.com/anthropics/claude-code/issues/92304) on 2026-09-05.
 
-
 [anthropics/claude-code#47748](https://github.com/anthropics/claude-code/issues/47748): opened 2026-04-14, labels `enhancement`, `area:lsp`, `stale`; proposes `filenameToLanguage`; lists `Dockerfile`, `Makefile`, `Jenkinsfile`, `Vagrantfile`, `Gemfile`; three comments (one person, two bot); closed `NOT_PLANNED` by github-actions on 2026-06-08; locked; the closing comment asks for a new issue referencing it. Cites #15785 (compound extensions), closed `NOT_PLANNED` 2026-02-14. #32912 (multiple servers per extension) closed `NOT_PLANNED` 2026-05-30. #89472 (project-scoped LSP config) open, 2026-08-25, states a repo-root `.lsp.json` is not discovered.
 
 ## Corroboration
