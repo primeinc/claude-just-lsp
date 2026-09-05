@@ -11,7 +11,7 @@ Measured on Claude Code 2.1.261, just-lsp 0.7.1, Windows 11. Each cell names the
 | `*.just`                                   | yes (`just matrix`, `just intel`)                | yes, from the language server (`just diag-probe`)            |
 | `justfile`, `Justfile`, `.justfile`, any case | no (`just matrix`)                            | yes, from a PostToolUse hook running `just-lsp analyze` (`just hook-matrix`) |
 
-Cause of the `no`: Claude Code selects an LSP server by `path.extname(file)`; `extensionToLanguage` keys must be at least two characters starting with `.`; no filename or glob field exists. `path.extname("justfile")` is `""`. Details, binary evidence, and the prior upstream report: [docs/claude-code-extensionless-routing.md](docs/claude-code-extensionless-routing.md).
+Cause of the `no`: Claude Code selects an LSP server by `path.extname(file)`; `extensionToLanguage` keys must be at least two characters starting with `.`; no filename or glob field exists. `path.extname("justfile")` is `""`. Details and binary evidence: [docs/claude-code-extensionless-routing.md](docs/claude-code-extensionless-routing.md). Upstream request: [anthropics/claude-code#92304](https://github.com/anthropics/claude-code/issues/92304).
 
 ## Prerequisites
 
