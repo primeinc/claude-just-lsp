@@ -1,0 +1,16 @@
+{
+  "name": "claude-just-lsp",
+  "description": "Claude Code LSP plugin for terror/just-lsp",
+  "owner": {
+    "name": "primeinc"
+  },
+  "plugins": [
+    {
+      "name": "just-lsp",
+      "source": "./",
+      "description": "Just language server (just-lsp) for Claude Code: diagnostics, hover, definitions, and symbols in justfiles",
+      "category": "development",
+      "tags": ["just", "justfile", "lsp", "language-server"]
+    }
+  ]
+}
