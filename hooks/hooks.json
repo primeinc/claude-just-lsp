@@ -7,28 +7,28 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Edit([Jj]ustfile)",
+            "if": "Edit(//**/[Jj][Uu][Ss][Tt][Ff][Ii][Ll][Ee])",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
             "timeout": 30,
             "statusMessage": "just-lsp analyze"
           },
           {
             "type": "command",
-            "if": "Edit(.justfile)",
+            "if": "Edit(//**/.[Jj][Uu][Ss][Tt][Ff][Ii][Ll][Ee])",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
             "timeout": 30,
             "statusMessage": "just-lsp analyze"
           },
           {
             "type": "command",
-            "if": "Write([Jj]ustfile)",
+            "if": "Write(//**/[Jj][Uu][Ss][Tt][Ff][Ii][Ll][Ee])",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
             "timeout": 30,
             "statusMessage": "just-lsp analyze"
           },
           {
             "type": "command",
-            "if": "Write(.justfile)",
+            "if": "Write(//**/.[Jj][Uu][Ss][Tt][Ff][Ii][Ll][Ee])",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/just-lsp-analyze.sh",
             "timeout": 30,
             "statusMessage": "just-lsp analyze"

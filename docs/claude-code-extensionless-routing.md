@@ -75,7 +75,7 @@ The per-server schema is closed (`additionalProperties: false`). Its complete fi
 
 ## Prior report
 
-[anthropics/claude-code#47748](https://github.com/anthropics/claude-code/issues/47748) (opened 2026-04-14, labels `enhancement`, `area:lsp`) proposed `filenameToLanguage` with `Dockerfile`, `Makefile`, `Jenkinsfile`, `Vagrantfile`, `Gemfile` as the affected set and Docker language servers as the use case. It received one comment, was closed `NOT_PLANNED` by the stale bot on 2026-06-08, and is locked. The bot asks for a new issue referencing it. It cites #15785 (compound extensions such as `docker-compose.yml`) as closed the same way. #32912 (multiple servers per extension) closed `NOT_PLANNED` on 2026-05-30.
+[anthropics/claude-code#47748](https://github.com/anthropics/claude-code/issues/47748) (opened 2026-04-14, labels `enhancement`, `area:lsp`) proposed `filenameToLanguage` with `Dockerfile`, `Makefile`, `Jenkinsfile`, `Vagrantfile`, `Gemfile` as the affected set and Docker language servers as the use case. It received three comments, one from a person, was closed `NOT_PLANNED` by the stale bot on 2026-06-08, and is locked. The bot asks for a new issue referencing it. It cites #15785 (compound extensions such as `docker-compose.yml`) as closed the same way. #32912 (multiple servers per extension) closed `NOT_PLANNED` on 2026-05-30.
 
 ## Corroboration
 
@@ -84,7 +84,7 @@ The per-server schema is closed (`additionalProperties: false`). Its complete fi
 
 ## Workaround in this plugin
 
-`hooks/hooks.json` runs `just-lsp analyze` from a `PostToolUse` hook with `if` rules `Edit([Jj]ustfile)`, `Edit(.justfile)`, `Write([Jj]ustfile)`, `Write(.justfile)`, and returns the report as `hookSpecificOutput.additionalContext`. That restores diagnostics after edits for the canonical names. It cannot restore the LSP tool: hover, definition, references, and symbols on a bare `justfile` still fail at server selection. On Windows, `if` file rules match case-insensitively, so `Edit(justfile)` and `Edit(Justfile)` as separate rules fire twice; the character class fires once.
+`hooks/hooks.json` runs `just-lsp analyze` from a `PostToolUse` hook with `if` rules on `Edit` and `Write` for `//**/[Jj][Uu][Ss][Tt][Ff][Ii][Ll][Ee]` and its dot-prefixed form, and returns the report as `hookSpecificOutput.additionalContext`. The `//**/` anchor matches anywhere on the filesystem rather than only under the working directory; the character classes match every casing `just` itself accepts (`just` and `just-lsp` compare the name case-insensitively). That restores diagnostics after edits for the canonical names. It cannot restore the LSP tool: hover, definition, references, and symbols on a bare `justfile` still fail at server selection. On Windows, `if` file rules match case-insensitively, so `Edit(justfile)` and `Edit(Justfile)` as separate rules fire twice; one class rule fires once.
 
 ## Shadow-file experiments
 
