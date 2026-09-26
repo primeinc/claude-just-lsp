@@ -45,7 +45,7 @@ case "$(uname -s)" in
       esac
     else
       lint_head="justlint not run:"
-      lint="justlint is not on PATH, so Windows interpreter resolution was not checked. It is cmd/justlint in primeinc/claude-hooks-mk2 and is not published yet."
+      lint="justlint is not on PATH, so Windows interpreter resolution was not checked. Install: GOPRIVATE=github.com/primeinc go install github.com/primeinc/claude-hooks-mk2/cmd/justlint@89c7671"
     fi
     ;;
 esac
