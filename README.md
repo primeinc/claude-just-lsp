@@ -21,7 +21,7 @@ Cause of the `no`: Claude Code selects an LSP server by `path.extname(file)`; `e
 | `just`     | `just-lsp` formats through `just --fmt --unstable`   | [casey/just installation](https://github.com/casey/just#installation)                                                                                                                      |
 | `jq`       | the hook reads the edited path from hook JSON        | [jqlang.org](https://jqlang.org)                                                                                                                                                           |
 | Git Bash   | Windows only: Claude Code runs shell-form hooks in it | ships with Git for Windows                                                                                                                                                                 |
-| `justlint` | optional, Windows only: flags interpreters that reach System32's WSL `bash.exe` or need `cygpath` outside Git Bash | not published yet: it is `cmd/justlint` in primeinc/claude-hooks-mk2, which has not released it. Without it the hook reports `justlint not run` and checks nothing else |
+| `justlint` | optional, Windows only: flags interpreters that reach System32's WSL `bash.exe` or need `cygpath` outside Git Bash | `GOPRIVATE=github.com/primeinc go install github.com/primeinc/claude-hooks-mk2/cmd/justlint@89c7671`. primeinc/claude-hooks-mk2 is private, so the machine needs git credentials for it. Without justlint the hook reports `justlint not run` |
 
 Check: `just-lsp --version`, `jq --version`.
 
