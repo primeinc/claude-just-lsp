@@ -37,24 +37,35 @@ hook-unit:
     [ -d "$iso" ] || fail "mktemp made no directory"
     trap 'rm -rf -- "$iso"' EXIT
     # A restricted PATH must expose exactly the tools a case names. Install
-    # directories are shared (a user bin, a shim folder), so each tool gets a
-    # directory of its own holding only a wrapper that execs it.
-    only() {
-        p="$(command -v "$1")" || fail "$1 is not on PATH"
+    # directories are shared (a user bin, a shim folder, /usr/bin), so the
+    # PATH holds only wrapper directories: base has the utilities the hook
+    # script runs (cat, uname), and each tool has a directory of its own.
+    # sh is called by absolute path so it needs no PATH entry.
+    wrap() {
+        p="$(command -v "$2")" || fail "$2 is not on PATH"
         mkdir -p "$iso/$1"
-        printf '#!/bin/sh\nexec "%s" "$@"\n' "$p" > "$iso/$1/$1"
-        chmod +x "$iso/$1/$1"
-        printf '%s' "$iso/$1"
+        printf '#!/bin/sh\nexec "%s" "$@"\n' "$p" > "$iso/$1/$2"
+        chmod +x "$iso/$1/$2"
     }
-    lsp_dir="$(only just-lsp)"
-    jq_dir="$(only jq)"
+    wrap base cat
+    wrap base uname
+    wrap lsp just-lsp
+    wrap jq jq
+    base="$iso/base"
+    lsp_dir="$iso/lsp"
+    jq_dir="$iso/jq"
+    shell="$(command -v sh)"
+    # the precondition each missing-tool case depends on: the tool is absent
+    absent() { leak=$(PATH="$2" "$shell" -c "command -v $1") && fail "$1 is visible on the PATH meant to exclude it: $leak"; return 0; }
     dirty="$root/tests/fixtures/lower/justfile"
     clean="$root/justfile"
     echo "--- no jq on PATH"
-    out=$(mkin "$dirty" | PATH="$lsp_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without jq"
+    absent jq "$base:$lsp_dir"
+    out=$(mkin "$dirty" | PATH="$base:$lsp_dir" "$shell" scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without jq"
     printf '%s\n' "$out" | rg -q 'jq is not on PATH' || fail "missing jq message: $out"
     echo "--- no just-lsp on PATH"
-    out=$(mkin "$dirty" | PATH="$jq_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without just-lsp"
+    absent just-lsp "$base:$jq_dir"
+    out=$(mkin "$dirty" | PATH="$base:$jq_dir" "$shell" scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without just-lsp"
     printf '%s\n' "$out" | rg -q 'just-lsp is not on PATH' || fail "missing just-lsp message: $out"
     echo "--- no file_path in input"
     out=$(printf '{}' | sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without file_path"
@@ -78,7 +89,8 @@ hook-unit:
     fi
     if [ "$windows" = 1 ]; then
         echo "--- no justlint on PATH (Windows) -> 'justlint not run' section, exit 0"
-        out=$(mkin "$dirty" | PATH="$lsp_dir:$jq_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 without justlint"
+        absent justlint "$base:$lsp_dir:$jq_dir"
+        out=$(mkin "$dirty" | PATH="$base:$lsp_dir:$jq_dir" "$shell" scripts/just-lsp-analyze.sh) || fail "expected exit 0 without justlint"
         printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("justlint not run:\njustlint is not on PATH")' > /dev/null || fail "missing justlint-not-run section: $out"
         if [ "$have_justlint" = 1 ]; then
             echo "--- bare bash -> justlint finding in additionalContext, exit 0"
