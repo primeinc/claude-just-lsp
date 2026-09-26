@@ -54,9 +54,9 @@ hook-unit:
     [ -z "$out" ] || fail "expected no output for clean file: $out"
     case "$(uname -s)" in
         MINGW* | MSYS* | CYGWIN*)
-            echo "--- no justlint on PATH (Windows)"
-            out=$(mkin "$dirty" | PATH="$lsp_dir:$jq_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without justlint"
-            printf '%s\n' "$out" | rg -q 'justlint is not on PATH' || fail "missing justlint message: $out"
+            echo "--- no justlint on PATH (Windows) -> 'justlint not run' section, exit 0"
+            out=$(mkin "$dirty" | PATH="$lsp_dir:$jq_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 without justlint"
+            printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("justlint not run:\njustlint is not on PATH")' > /dev/null || fail "missing justlint-not-run section: $out"
             echo "--- bare bash -> justlint finding in additionalContext, exit 0"
             out=$(mkin "$root/tests/fixtures/bash/justfile" | sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 for a justlint finding"
             printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("bare-bash-shell")' > /dev/null || fail "justlint finding missing: $out"
