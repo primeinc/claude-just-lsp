@@ -31,12 +31,25 @@ analyze:
 [script]
 hook-unit:
     if command -v cygpath > /dev/null 2>&1; then root="$(cygpath -a -m .)"; else root="$(pwd)"; fi
-    lsp_dir="$(dirname "$(command -v just-lsp)")"
-    jq_dir="$(dirname "$(command -v jq)")"
-    dirty="$root/tests/fixtures/lower/justfile"
-    clean="$root/justfile"
     mkin() { jq -nc --arg p "$1" '{tool_input:{file_path:$p}}'; }
     fail() { echo "FAIL: $1" >&2; exit 1; }
+    iso="$(mktemp -d)"
+    [ -d "$iso" ] || fail "mktemp made no directory"
+    trap 'rm -rf -- "$iso"' EXIT
+    # A restricted PATH must expose exactly the tools a case names. Install
+    # directories are shared (a user bin, a shim folder), so each tool gets a
+    # directory of its own holding only a wrapper that execs it.
+    only() {
+        p="$(command -v "$1")" || fail "$1 is not on PATH"
+        mkdir -p "$iso/$1"
+        printf '#!/bin/sh\nexec "%s" "$@"\n' "$p" > "$iso/$1/$1"
+        chmod +x "$iso/$1/$1"
+        printf '%s' "$iso/$1"
+    }
+    lsp_dir="$(only just-lsp)"
+    jq_dir="$(only jq)"
+    dirty="$root/tests/fixtures/lower/justfile"
+    clean="$root/justfile"
     echo "--- no jq on PATH"
     out=$(mkin "$dirty" | PATH="$lsp_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without jq"
     printf '%s\n' "$out" | rg -q 'jq is not on PATH' || fail "missing jq message: $out"
