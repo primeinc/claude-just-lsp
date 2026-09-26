@@ -1,5 +1,9 @@
 set minimum-version := '1.55.0'
 set export
+# Windows names sh: a bare bash resolves to System32\bash.exe, the WSL launcher.
+[windows]
+set script-interpreter := ['sh', '-euo', 'pipefail']
+[unix]
 set script-interpreter := ['bash', '-euo', 'pipefail']
 
 out_dir := 'tests/out'
@@ -27,17 +31,41 @@ analyze:
 [script]
 hook-unit:
     if command -v cygpath > /dev/null 2>&1; then root="$(cygpath -a -m .)"; else root="$(pwd)"; fi
-    lsp_dir="$(dirname "$(command -v just-lsp)")"
-    jq_dir="$(dirname "$(command -v jq)")"
-    dirty="$root/tests/fixtures/lower/justfile"
-    clean="$root/justfile"
     mkin() { jq -nc --arg p "$1" '{tool_input:{file_path:$p}}'; }
     fail() { echo "FAIL: $1" >&2; exit 1; }
+    iso="$(mktemp -d)"
+    [ -d "$iso" ] || fail "mktemp made no directory"
+    trap 'rm -rf -- "$iso"' EXIT
+    # A restricted PATH must expose exactly the tools a case names. Install
+    # directories are shared (a user bin, a shim folder, /usr/bin), so the
+    # PATH holds only wrapper directories: base has the utilities the hook
+    # script runs (cat, uname), and each tool has a directory of its own.
+    # sh is called by absolute path so it needs no PATH entry.
+    wrap() {
+        p="$(command -v "$2")" || fail "$2 is not on PATH"
+        mkdir -p "$iso/$1"
+        printf '#!/bin/sh\nexec "%s" "$@"\n' "$p" > "$iso/$1/$2"
+        chmod +x "$iso/$1/$2"
+    }
+    wrap base cat
+    wrap base uname
+    wrap lsp just-lsp
+    wrap jq jq
+    base="$iso/base"
+    lsp_dir="$iso/lsp"
+    jq_dir="$iso/jq"
+    shell="$(command -v sh)"
+    # the precondition each missing-tool case depends on: the tool is absent
+    absent() { leak=$(PATH="$2" "$shell" -c "command -v $1") && fail "$1 is visible on the PATH meant to exclude it: $leak"; return 0; }
+    dirty="$root/tests/fixtures/lower/justfile"
+    clean="$root/justfile"
     echo "--- no jq on PATH"
-    out=$(mkin "$dirty" | PATH="$lsp_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without jq"
+    absent jq "$base:$lsp_dir"
+    out=$(mkin "$dirty" | PATH="$base:$lsp_dir" "$shell" scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without jq"
     printf '%s\n' "$out" | rg -q 'jq is not on PATH' || fail "missing jq message: $out"
     echo "--- no just-lsp on PATH"
-    out=$(mkin "$dirty" | PATH="$jq_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without just-lsp"
+    absent just-lsp "$base:$jq_dir"
+    out=$(mkin "$dirty" | PATH="$base:$jq_dir" "$shell" scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without just-lsp"
     printf '%s\n' "$out" | rg -q 'just-lsp is not on PATH' || fail "missing just-lsp message: $out"
     echo "--- no file_path in input"
     out=$(printf '{}' | sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without file_path"
@@ -45,9 +73,33 @@ hook-unit:
     echo "--- dirty file -> additionalContext JSON, exit 0"
     out=$(mkin "$dirty" | sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 for dirty file"
     printf '%s' "$out" | jq -e '.hookSpecificOutput.hookEventName == "PostToolUse" and (.hookSpecificOutput.additionalContext | test("missing-dependencies"))' > /dev/null || fail "unexpected JSON: $out"
-    echo "--- clean file -> silent, exit 0"
+    # justlint is optional and runs only on Windows: without it, a clean file
+    # yields exactly the "justlint not run" section instead of silence.
+    windows=0
+    case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) windows=1 ;; esac
+    have_justlint=0
+    command -v justlint > /dev/null 2>&1 && have_justlint=1
     out=$(mkin "$clean" | sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 for clean file"
-    [ -z "$out" ] || fail "expected no output for clean file: $out"
+    if [ "$windows" = 1 ] && [ "$have_justlint" = 0 ]; then
+        echo "--- clean file, Windows without justlint -> only the 'justlint not run' section, exit 0"
+        printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | startswith("justlint not run:\n")' > /dev/null || fail "expected only the justlint-not-run section: $out"
+    else
+        echo "--- clean file -> silent, exit 0"
+        [ -z "$out" ] || fail "expected no output for clean file: $out"
+    fi
+    if [ "$windows" = 1 ]; then
+        echo "--- no justlint on PATH (Windows) -> 'justlint not run' section, exit 0"
+        absent justlint "$base:$lsp_dir:$jq_dir"
+        out=$(mkin "$dirty" | PATH="$base:$lsp_dir:$jq_dir" "$shell" scripts/just-lsp-analyze.sh) || fail "expected exit 0 without justlint"
+        printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("justlint not run:\njustlint is not on PATH")' > /dev/null || fail "missing justlint-not-run section: $out"
+        if [ "$have_justlint" = 1 ]; then
+            echo "--- bare bash -> justlint finding in additionalContext, exit 0"
+            out=$(mkin "$root/tests/fixtures/bash/justfile" | sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 for a justlint finding"
+            printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("bare-bash-shell")' > /dev/null || fail "justlint finding missing: $out"
+        else
+            echo "--- SKIP bare bash -> justlint finding: justlint is not installed"
+        fi
+    fi
     echo "hook-unit: ok"
 
 # One LSP tool call through Claude Code; expect=attach asserts didOpen with languageId just, expect=miss asserts the routing miss
