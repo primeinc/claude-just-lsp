@@ -1,5 +1,9 @@
 set minimum-version := '1.55.0'
 set export
+# Windows names sh: a bare bash resolves to System32\bash.exe, the WSL launcher.
+[windows]
+set script-interpreter := ['sh', '-euo', 'pipefail']
+[unix]
 set script-interpreter := ['bash', '-euo', 'pipefail']
 
 out_dir := 'tests/out'
@@ -48,6 +52,16 @@ hook-unit:
     echo "--- clean file -> silent, exit 0"
     out=$(mkin "$clean" | sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 for clean file"
     [ -z "$out" ] || fail "expected no output for clean file: $out"
+    case "$(uname -s)" in
+        MINGW* | MSYS* | CYGWIN*)
+            echo "--- no justlint on PATH (Windows)"
+            out=$(mkin "$dirty" | PATH="$lsp_dir:$jq_dir:/usr/bin:/bin" sh scripts/just-lsp-analyze.sh 2>&1) && fail "expected exit 2 without justlint"
+            printf '%s\n' "$out" | rg -q 'justlint is not on PATH' || fail "missing justlint message: $out"
+            echo "--- bare bash -> justlint finding in additionalContext, exit 0"
+            out=$(mkin "$root/tests/fixtures/bash/justfile" | sh scripts/just-lsp-analyze.sh) || fail "expected exit 0 for a justlint finding"
+            printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext | test("bare-bash-shell")' > /dev/null || fail "justlint finding missing: $out"
+            ;;
+    esac
     echo "hook-unit: ok"
 
 # One LSP tool call through Claude Code; expect=attach asserts didOpen with languageId just, expect=miss asserts the routing miss

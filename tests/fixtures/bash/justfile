@@ -1,0 +1,4 @@
+set shell := ['bash', '-uc']
+
+build:
+    echo build
