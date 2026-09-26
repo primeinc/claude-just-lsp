@@ -21,7 +21,7 @@ Cause of the `no`: Claude Code selects an LSP server by `path.extname(file)`; `e
 | `just`     | `just-lsp` formats through `just --fmt --unstable`   | [casey/just installation](https://github.com/casey/just#installation)                                                                                                                      |
 | `jq`       | the hook reads the edited path from hook JSON        | [jqlang.org](https://jqlang.org)                                                                                                                                                           |
 | Git Bash   | Windows only: Claude Code runs shell-form hooks in it | ships with Git for Windows                                                                                                                                                                 |
-| `justlint` | Windows only: flags interpreters that reach System32's WSL `bash.exe` or need `cygpath` outside Git Bash | `go install ./cmd/justlint` in a claude-hooks-mk2 checkout                                                                                        |
+| `justlint` | optional, Windows only: flags interpreters that reach System32's WSL `bash.exe` or need `cygpath` outside Git Bash | not published yet: it is `cmd/justlint` in primeinc/claude-hooks-mk2, which has not released it. Without it the hook reports `justlint not run` and checks nothing else |
 
 Check: `just-lsp --version`, `jq --version`.
 
@@ -57,7 +57,7 @@ Script, in order:
 2. `just-lsp` missing: stderr `just-lsp hook: just-lsp is not on PATH, so the edited file was not analyzed. Install: cargo install just-lsp (...)`, exit 2.
 3. `tool_input.file_path` absent: stderr `just-lsp hook: hook input carried no tool_input.file_path, so nothing was analyzed.`, exit 2.
 4. `NO_COLOR=1 just-lsp analyze <file_path> 2>&1`, then on Windows (`uname -s` is `MINGW*`, `MSYS*` or `CYGWIN*`) `justlint <file_path> 2>&1`. Empty `just-lsp` output and `justlint` exit 0: exit 0, no message.
-5. Otherwise: stdout `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"<sections>"}}`, exit 0. Sections, blank-line separated: `just-lsp analyze:\n<report>` when it printed anything (`just-lsp analyze failed (exit N):` above exit 1); `justlint:\n<findings>` on exit 1; `justlint could not check the file:\n<error>` on exit 2; `justlint not run:\n<install line>` on Windows without `justlint`, which is optional. Text longer than 9,000 characters is cut at 9,000 with the line `[report truncated at 9000 characters]`.
+5. Otherwise: stdout `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"<sections>"}}`, exit 0. Sections, blank-line separated: `just-lsp analyze:\n<report>` when it printed anything (`just-lsp analyze failed (exit N):` above exit 1); `justlint:\n<findings>` on exit 1; `justlint could not check the file:\n<error>` on exit 2; `justlint not run:\n<reason>` on Windows without `justlint`, which is optional. Text longer than 9,000 characters is cut at 9,000 with the line `[report truncated at 9000 characters]`.
 
 Exit 2 on PostToolUse shows stderr to Claude and renders a hook error notice to the user. Exit 0 with `additionalContext` inserts the text next to the tool result, the channel native LSP diagnostics use. No other file is ever analyzed in place of the edited one.
 
@@ -80,7 +80,7 @@ Requires `just`, `just-lsp`, `jq`, `rg`, `bash`, `claude` on `PATH`. Recipes mar
 | ------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `just validate`    | 0         | `claude plugin validate . --strict` passes (plugin.json, marketplace.json, hooks.json; `.lsp.json` is not validated by this command) |
 | `just analyze`     | 0         | prints `just-lsp analyze` output for the four fixtures                                                                   |
-| `just hook-unit`   | 0         | script: exit 2 and message without `jq`; without `just-lsp`; without `file_path`; JSON with `missing-dependencies` for a dirty file; silence for a clean file; on Windows, a `justlint not run` section without `justlint` and JSON with `bare-bash-shell` for `bash/justfile` |
+| `just hook-unit`   | 0         | script: exit 2 and message without `jq`; without `just-lsp`; without `file_path`; JSON with `missing-dependencies` for a dirty file; silence for a clean file, or on Windows without `justlint` only the `justlint not run` section; on Windows, a `justlint not run` section when `justlint` is off `PATH`, and with `justlint` installed JSON with `bare-bash-shell` for `bash/justfile` (printed as SKIP without it) |
 | `just matrix`      | 4         | `foo.just`: `LSP: Sent didOpen ... (languageId: just)`; `justfile`, `Justfile`, `.justfile`: `No LSP server available for file type` |
 | `just intel`       | 3         | `hover`, `goToDefinition`, `findReferences` on `build` at foo.just 14:7 attach                                            |
 | `just hook-matrix` | 5         | `Edit` on `justfile`, `Justfile`, `.justfile` and `Write` on `justfile`, `.justfile`: exactly one `Hook PostToolUse (just-lsp analyze) provided additionalContext` |
