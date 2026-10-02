@@ -1,6 +1,6 @@
 {
   "name": "just-lsp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "terror/just-lsp for Claude Code: LSP for *.just files; just-lsp analyze after edits to justfile, Justfile, .justfile",
   "author": {
     "name": "primeinc"

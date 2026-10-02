@@ -121,7 +121,6 @@ probe name file expect='attach' op='documentSymbol' line='1' character='1':
         --model "$probe_model" \
         --max-budget-usd "$probe_budget_usd" \
         --output-format json \
-        --no-session-persistence \
         "$prompt" > "$result"
     echo "--- tool result ---"
     jq -r '.[] | select(.type=="user") | .tool_use_result.result // empty' "$result"
@@ -176,8 +175,7 @@ diag-probe name='diag' tools='default':
         --max-budget-usd "$probe_budget_usd" \
         --input-format stream-json \
         --output-format stream-json \
-        --verbose \
-        --no-session-persistence >> "$result"
+        --verbose >> "$result"
     echo "--- results ---"
     jq -c 'select(.type=="result") | {num_turns,result}' "$result"
     echo "--- diagnostics lifecycle in log ---"
@@ -220,7 +218,6 @@ hook-probe name='hook' fixture='tests/fixtures/lower/justfile' basename='justfil
         --output-format stream-json \
         --include-hook-events \
         --verbose \
-        --no-session-persistence \
         "$prompt" > "$result"
     echo "--- hook rule decisions and delivery ---"
     rg -n 'Skipping hook due to if condition|provided additionalContext|Hook PostToolUse:(Edit|Write) \(PostToolUse\) (success|error)' "$log" || true
